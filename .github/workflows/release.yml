@@ -1,9 +1,7 @@
 name: Release And Publish Python Package
 
 on:
-  push:
-    tags:
-      - "v*"
+  workflow_dispatch:
 
 permissions:
   contents: write

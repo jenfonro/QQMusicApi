@@ -1,0 +1,70 @@
+name: iWebPlus Module Release
+
+on:
+  push:
+    tags:
+      - "v*-iwebplus.*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing tag to build and attach assets to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+          ref: ${{ inputs.tag || github.ref }}
+      - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
+        with:
+          python-version: "3.12"
+      - name: Install project
+        run: uv sync --frozen --group web --group testing
+      - name: Offline route and login regressions
+        run: uv run python -m unittest discover -s iwebplus/tests -p "test_*.py" -v
+      - name: Build standalone module
+        env:
+          IWEBPLUS_WORK: ${{ runner.temp }}/iwebplus-work
+          IWEBPLUS_DIST: ${{ runner.temp }}/iwebplus-dist
+        run: uv run python iwebplus/build.py --force
+      - name: Check release identity
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+          DIST: ${{ runner.temp }}/iwebplus-dist
+        run: |
+          python3 - <<'PY'
+          import json, os
+          manifest = json.load(open(os.environ["DIST"] + "/qq-module.json", encoding="utf-8"))
+          tag = os.environ["TAG"].removeprefix("v")
+          assert tag == manifest["version"], (tag, manifest["version"])
+          import subprocess
+          commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+          assert manifest["sourceCommit"] == commit, (manifest["sourceCommit"], commit)
+          print(json.dumps(manifest, indent=2))
+          PY
+      - name: Publish release assets
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228  # v3
+        with:
+          tag_name: ${{ inputs.tag || github.ref_name }}
+          name: QQMusicApi iWebPlus ${{ inputs.tag || github.ref_name }}
+          body: |
+            Controlled iWebPlus fork build. This is not an upstream-official binary.
+
+            - upstream: L-1124/QQMusicApi `0.8.2`
+            - patches: cross-domain response cookies, account-bound radar, controlled playback report
+            - manifest, complete corresponding source and third-party notices are attached
+          files: |
+            ${{ runner.temp }}/iwebplus-dist/qq-module.json
+            ${{ runner.temp }}/iwebplus-dist/qqmusic-linux-x64-*
+            ${{ runner.temp }}/iwebplus-dist/qqmusic-source-*.tar.gz
+            ${{ runner.temp }}/iwebplus-dist/qqmusic-licenses-*.tar.gz
+          fail_on_unmatched_files: true

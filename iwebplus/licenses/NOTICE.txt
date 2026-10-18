@@ -1,0 +1,52 @@
+QQMusicApi standalone module 0.8.2-iwebplus.7
+
+QQMusicApi main snapshot (source version 0.8.2), copyright its upstream authors and contributors.
+Upstream: https://github.com/L-1124/QQMusicApi
+Commit: 27861e51432ea6b6e88dc35c4e8c8e239c0339e8
+License: GNU GPL version 3 or, at your option, any later version.
+This standalone build is not an upstream Release binary.
+
+The iWebPlus launcher, build scripts and module acceptance tests are
+modifications/additions made for this standalone distribution in 2026.
+They are distributed under GPL-3.0-or-later, WITHOUT ANY WARRANTY.
+The build script patches the upstream response cookie snapshot on 2026-10-18
+to avoid ambiguous CookieJar name lookups during QQ QR authorization.
+On the same date it patches only the radar Web route to require caller
+credentials and remove public caching/coalescing, preserving the SDK method,
+page parameter and response model. Other recommendation/public routes are
+unchanged; no new upstream protocol is introduced.
+The source archive includes the pristine pinned upstream commit and the exact
+patches in scripts/build-qq-module.py.
+The wrapper adds authenticated local transport, lifecycle controls and a frozen runtime; it disables CORS,
+redirects, environment configuration and shared/default account seeds.
+The wrapper disables only the upstream per-IP rate limiter for authenticated
+loopback batches, retaining access and concurrency controls. Preparation
+validates and restricts the host storage directory to mode 0700 without
+reading or rewriting account credentials.
+Unexpected request errors retain only their stage, exception class and code
+locations in a private last-error.json; no request or credential values.
+
+This is a separate executable, not code incorporated into the plugin's
+TypeScript source. Redis, cloud upload extras, development/documentation
+tools, GUI frameworks and a PyPy-only zstandard backend are not bundled.
+The CPython zstandard backend and the locked upstream web runtime remain.
+
+The accompanying qqmusic-source-0.8.2-iwebplus.7.tar.gz contains the complete
+upstream commit, the launcher/build scripts/tests, the dependency source
+distributions, and the fixed PyInstaller source including its bootloader.
+The source archive includes the instructions needed to build this module.
+Keep the archive, manifest and this licenses directory with the executable
+when redistributing it. No separate source-code offer or proprietary
+activation key is required to rebuild or install a modified module.
+
+PyInstaller's bootloader is covered by its original GPL license and
+bootloader exception, included under pyinstaller-6.16.0/.
+Other bundled components retain their own licenses, notices and copyrights
+in this directory. packages.json lists Python distributions. system/ contains
+the Ubuntu copyright/license notices for the CPython interpreter and the
+standard platform libraries copied into the executable. The corresponding
+system-libraries.json identifies exact Ubuntu source package versions.
+Standard operating-system/interpreter libraries and general-purpose build
+tools can also be obtained from Ubuntu's source-package archive.
+
+The plugin's existing license does not replace the licenses of this module.

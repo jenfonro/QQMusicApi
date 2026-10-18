@@ -12,10 +12,11 @@ ROUTES: tuple[WebRoute, ...] = (
         auth=AuthPolicy.OPTIONAL,
     ),
     R(RecommendApi.get_home_feed, "/recommend/get_home_feed", cache=PUBLIC_60),
+    # iWebPlus, 2026-10-18: 雷达推荐与账号绑定, 且不能进入公共缓存或请求合并.
     R(
         RecommendApi.get_radar_recommend,
         "/recommend/get_radar_recommend",
-        cache=PUBLIC_60,
+        auth=AuthPolicy.COOKIE_OR_DEFAULT,
     ),
     R(
         RecommendApi.get_recommend_newsong,

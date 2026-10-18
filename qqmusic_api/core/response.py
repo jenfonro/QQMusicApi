@@ -69,10 +69,8 @@ def snapshot_payload(response: "RawResponse") -> RawPayload:
     Returns:
         与响应内容等价的 RawPayload 快照.
     """
-    cookies: dict[str, str] = {}
-    # RequestsCookieJar 迭代产出 Cookie 对象而非键名, 必须经 keys() 取名值.
-    for name in response.cookies.keys():  # noqa: SIM118
-        cookies[name] = response.cookies[name]
+    # iWebPlus, 2026-10-18: 同名跨域 Cookie 不能按名称索引, 否则 CookieConflictError.
+    cookies: dict[str, str] = dict(response.cookies.items())
     return RawPayload(
         status_code=response.status_code,
         url=response.url,
