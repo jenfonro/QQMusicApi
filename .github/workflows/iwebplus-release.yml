@@ -21,8 +21,6 @@ jobs:
     env:
       UV_PYTHON: /usr/bin/python3.12
       UV_PYTHON_DOWNLOADS: never
-      IWEBPLUS_WORK: ${{ runner.temp }}/iwebplus-work
-      IWEBPLUS_DIST: ${{ runner.temp }}/iwebplus-dist
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
         with:
@@ -46,6 +44,10 @@ jobs:
         with:
           version: "0.9.6"
           enable-cache: false
+      - name: Set build directories
+        run: |
+          echo "IWEBPLUS_WORK=$RUNNER_TEMP/iwebplus-work" >> "$GITHUB_ENV"
+          echo "IWEBPLUS_DIST=$RUNNER_TEMP/iwebplus-dist" >> "$GITHUB_ENV"
       - name: Install project
         run: uv sync --frozen --group web --group testing
       - name: Offline route and login regressions

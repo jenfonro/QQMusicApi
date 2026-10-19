@@ -21,7 +21,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-VERSION = "0.8.2-iwebplus.9"
+VERSION = "0.8.2-iwebplus.10"
 NONCE = re.compile(r"[0-9a-f]{32}")
 TOKEN = re.compile(r"[0-9a-f]{64}")
 

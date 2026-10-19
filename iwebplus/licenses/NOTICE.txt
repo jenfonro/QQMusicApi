@@ -1,4 +1,4 @@
-QQMusicApi standalone module 0.8.2-iwebplus.9
+QQMusicApi standalone module 0.8.2-iwebplus.10
 
 QQMusicApi main snapshot (source version 0.8.2), copyright its upstream authors and contributors.
 Upstream: https://github.com/L-1124/QQMusicApi
@@ -32,7 +32,7 @@ TypeScript source. Redis, cloud upload extras, development/documentation
 tools, GUI frameworks and a PyPy-only zstandard backend are not bundled.
 The CPython zstandard backend and the locked upstream web runtime remain.
 
-The accompanying qqmusic-source-0.8.2-iwebplus.9.tar.gz contains the complete
+The accompanying qqmusic-source-0.8.2-iwebplus.10.tar.gz contains the complete
 upstream commit, the launcher/build scripts/tests, the dependency source
 distributions, and the fixed PyInstaller source including its bootloader.
 The source archive includes the instructions needed to build this module.
