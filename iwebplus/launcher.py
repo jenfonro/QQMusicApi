@@ -1,5 +1,4 @@
 # ruff: noqa: D102, D103, D107, FBT002, RET503, RUF005, SIM105
-#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Private, loopback-only launcher for the pinned QQMusicApi web application."""
 
@@ -22,7 +21,7 @@ import time
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-VERSION = "0.8.2-iwebplus.8"
+VERSION = "0.8.2-iwebplus.9"
 NONCE = re.compile(r"[0-9a-f]{32}")
 TOKEN = re.compile(r"[0-9a-f]{64}")
 
@@ -493,7 +492,7 @@ def serve():
 
         from web.src import app as upstream
 
-        upstream.load_account_configs = lambda _: []
+        upstream.load_account_configs = lambda path: []
         app = upstream.create_app()
         app.router.redirect_slashes = False
         original_lifespan = app.router.lifespan_context

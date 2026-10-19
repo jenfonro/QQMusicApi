@@ -18,24 +18,42 @@ jobs:
   build:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    env:
+      UV_PYTHON: /usr/bin/python3.12
+      UV_PYTHON_DOWNLOADS: never
+      IWEBPLUS_WORK: ${{ runner.temp }}/iwebplus-work
+      IWEBPLUS_DIST: ${{ runner.temp }}/iwebplus-dist
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803  # v6
         with:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ inputs.tag || github.ref }}
+      - name: Refuse replacing a published release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --slurp > "$RUNNER_TEMP/releases.json"
+          python3 - <<'PY'
+          import json, os
+          pages = json.load(open(os.environ["RUNNER_TEMP"] + "/releases.json", encoding="utf-8"))
+          releases = [release for page in pages for release in page]
+          if any(release["tag_name"] == os.environ["TAG"] for release in releases):
+              raise SystemExit("Use a new version tag; existing releases are immutable.")
+          PY
       - uses: astral-sh/setup-uv@94527f2e458b27549849d47d273a16bec83a01e9  # v7
         with:
-          python-version: "3.12"
+          version: "0.9.6"
+          enable-cache: false
       - name: Install project
         run: uv sync --frozen --group web --group testing
       - name: Offline route and login regressions
-        run: uv run python -m unittest discover -s iwebplus/tests -p "test_*.py" -v
+        run: uv run --frozen pytest iwebplus/tests -q
       - name: Build standalone module
-        env:
-          IWEBPLUS_WORK: ${{ runner.temp }}/iwebplus-work
-          IWEBPLUS_DIST: ${{ runner.temp }}/iwebplus-dist
-        run: uv run python iwebplus/build.py --force
+        run: uv run --frozen python iwebplus/build.py
+      - name: Standalone lifecycle and OpenAPI acceptance
+        run: node --test iwebplus/tests/runtime.test.cjs
       - name: Check release identity
         env:
           TAG: ${{ inputs.tag || github.ref_name }}
@@ -68,3 +86,4 @@ jobs:
             ${{ runner.temp }}/iwebplus-dist/qqmusic-source-*.tar.gz
             ${{ runner.temp }}/iwebplus-dist/qqmusic-licenses-*.tar.gz
           fail_on_unmatched_files: true
+          overwrite_files: false

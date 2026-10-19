@@ -1,8 +1,6 @@
-#!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Build the standalone iWebPlus QQ module, its manifest and corresponding source."""
 
-import argparse
 import concurrent.futures
 import gzip
 import hashlib
@@ -20,13 +18,18 @@ import tomllib
 ROOT = Path(__file__).resolve().parent.parent
 MODULE = ROOT / "iwebplus"
 CONFIG = json.loads((MODULE / "build.json").read_text())
-os.environ.setdefault("SOURCE_DATE_EPOCH", str(CONFIG["sourceEpoch"]))
+COMMIT = subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip()
+EPOCH = int(subprocess.check_output(["git", "-C", ROOT, "show", "-s", "--format=%ct", "HEAD"], text=True))
+os.environ["SOURCE_DATE_EPOCH"] = str(EPOCH)
 
 
 def digest(path):
     """Return the lowercase SHA-256 of a file."""
+    value = hashlib.sha256()
     with path.open("rb") as stream:
-        return hashlib.file_digest(stream, "sha256").hexdigest()
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            value.update(block)
+    return value.hexdigest()
 
 
 def write_json(path, value):
@@ -73,9 +76,9 @@ def extract(archive, destination):
         source.extractall(destination, filter="data")
 
 
-def package_sources(packages, licenses):
+def package_sources(packages, licenses, work, dist):
     """Create the complete corresponding source archive for this commit."""
-    tree = Path(os.environ.get("IWEBPLUS_WORK", ROOT / "build/iwebplus")) / "corresponding-source"
+    tree = work / "corresponding-source"
     if tree.exists():
         shutil.rmtree(tree)
     tree.mkdir(parents=True)
@@ -87,7 +90,11 @@ def package_sources(packages, licenses):
     with tarfile.open(archive_path) as archive:
         archive.extractall(tree, filter="data")
     archive_path.unlink()
+    # Keep the exact commit rebuildable from the archive without GitHub.
+    run("git", "-C", ROOT, "bundle", "create", source / "fork.bundle", "HEAD")
     shutil.copytree(licenses, source / "licenses")
+    shutil.copyfile(work / "system-libraries.json", source / "system-libraries.json")
+    write_json(source / "source-identity.json", {"commit": COMMIT, "python": sys.version, "sourceEpoch": EPOCH})
     locked = tomllib.loads((ROOT / "uv.lock").read_text())
     sources = {(item["name"], item.get("version")): item["sdist"] for item in locked["package"] if "sdist" in item}
     tools = {
@@ -112,9 +119,7 @@ def package_sources(packages, licenses):
         archive = download(
             entry["url"],
             entry["sha256"],
-            Path(os.environ.get("IWEBPLUS_WORK", ROOT / "build/iwebplus"))
-            / "downloads"
-            / (entry["name"] + "-" + entry["version"] + ".tar.gz"),
+            work / "downloads" / (entry["name"] + "-" + entry["version"] + ".tar.gz"),
         )
         extract(archive, source / "dependencies" / (entry["name"] + "-" + entry["version"]))
 
@@ -129,7 +134,7 @@ def package_sources(packages, licenses):
         info.mode = 0o755 if info.isdir() or info.mode & 0o111 else 0o644
         return info
 
-    target = Path(os.environ["IWEBPLUS_DIST"]) / f"qqmusic-source-{CONFIG['version']}.tar.gz"
+    target = dist / f"qqmusic-source-{CONFIG['version']}.tar.gz"
     with (
         target.open("wb") as stream,
         gzip.GzipFile(
@@ -141,11 +146,38 @@ def package_sources(packages, licenses):
     return target
 
 
+def collect_system_licenses(licenses, work):
+    """Retain notices and exact source-package identities for bundled system libraries."""
+    packages = {"python3.12"}
+    libraries = []
+    for name, filename, kind in json.loads((work / "libraries.json").read_text()):
+        path = Path(filename).resolve()
+        if kind not in ("BINARY", "EXTENSION") or not str(path).startswith("/usr/lib/"):
+            continue
+        owner = subprocess.check_output(["dpkg-query", "-S", str(path)], text=True)
+        package = owner.splitlines()[-1].split(": ", 1)[0]
+        packages.add(package)
+        libraries.append({"name": name, "sha256": digest(path), "package": package})
+    records = []
+    for package in sorted(packages):
+        record = subprocess.check_output(
+            ["dpkg-query", "-W", "-f=${Package}\\t${Version}\\t${source:Package}\\t${source:Version}", package],
+            text=True,
+        ).split("\t")
+        target = licenses / "system" / record[0]
+        target.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(Path("/usr/share/doc") / record[0] / "copyright", target / "copyright")
+        records.append(dict(zip(("package", "version", "sourcePackage", "sourceVersion"), record, strict=True)))
+    write_json(work / "system-libraries.json", {"packages": records, "libraries": libraries})
+    shutil.copyfile(work / "system-libraries.json", licenses / "system-libraries.json")
+
+
 def main():
     """Run the pinned build and emit release assets."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--force", action="store_true")
-    parser.parse_args()
+    if subprocess.check_output(["git", "-C", ROOT, "status", "--porcelain"], text=True).strip():
+        raise RuntimeError("Release builds require a clean committed tree")
+    if Path(sys.base_prefix) != Path("/usr") or sys.version_info[:2] != (3, 12):
+        raise RuntimeError("Build requires the Ubuntu system Python 3.12")
     if (
         sys.platform != "linux"
         or platform.machine() != "x86_64"
@@ -172,9 +204,11 @@ def main():
         TMPDIR=str(work / "tmp"),
         TMP=str(work / "tmp"),
         TEMP=str(work / "tmp"),
-        SOURCE_DATE_EPOCH=str(CONFIG["sourceEpoch"]),
+        SOURCE_DATE_EPOCH=str(EPOCH),
         IWEBPLUS_LIBRARIES=str(work / "libraries.json"),
     )
+    for name in ("PYTHONHOME", "PYTHONPATH", "PYTHONSTARTUP", "LD_PRELOAD", "LD_LIBRARY_PATH", "LD_AUDIT"):
+        env.pop(name, None)
     (work / "tmp").mkdir(exist_ok=True)
     run(
         uv,
@@ -229,7 +263,8 @@ def main():
         run(python, MODULE / "collect-licenses.py", licenses, cwd=ROOT, env=env, text=True, capture_output=True).stdout
     )
     write_json(licenses / "packages.json", packages)
-    source_archive = package_sources(packages, licenses)
+    collect_system_licenses(licenses, work)
+    source_archive = package_sources(packages, licenses, work, dist)
     manifest = {
         "protocol": 1,
         "version": CONFIG["version"],
@@ -243,15 +278,13 @@ def main():
         "size": binary.stat().st_size,
         "sourceArchive": source_archive.name,
         "sourceSha256": digest(source_archive),
-        "sourceCommit": subprocess.check_output(["git", "-C", ROOT, "rev-parse", "HEAD"], text=True).strip(),
+        "sourceCommit": COMMIT,
     }
     write_json(dist / "qq-module.json", manifest)
     licenses_archive = dist / f"qqmusic-licenses-{CONFIG['version']}.tar.gz"
     with (
         licenses_archive.open("wb") as stream,
-        gzip.GzipFile(
-            filename="", fileobj=stream, mode="wb", mtime=CONFIG["sourceEpoch"], compresslevel=9
-        ) as compressed,
+        gzip.GzipFile(filename="", fileobj=stream, mode="wb", mtime=EPOCH, compresslevel=9) as compressed,
         tarfile.open(fileobj=compressed, mode="w") as archive,
     ):
         for item in sorted(licenses.rglob("*")):

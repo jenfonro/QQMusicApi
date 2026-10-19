@@ -18,7 +18,7 @@ for distribution in sorted(importlib.metadata.distributions(), key=lambda item: 
     notices = []
     for file in distribution.files or []:
         if any(part.lower().startswith(("license", "copying", "notice", "authors")) for part in file.parts):
-            source = Path(distribution.locate_file(file))
+            source = Path(str(distribution.locate_file(file)))
             if source.is_file():
                 # Preserve nested third-party notices rather than flatten them.
                 relative = Path(*[part for part in file.parts if part not in (".", "..")])

@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   generate-release-body:
+    if: github.repository == 'L-1124/QQMusicApi'
     runs-on: ubuntu-latest
     outputs:
       release_body: ${{ steps.git-cliff.outputs.content }}

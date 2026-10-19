@@ -11,7 +11,7 @@ import hashlib
 import json
 import time
 import zlib
-from typing import Any, cast
+from typing import TYPE_CHECKING, Any, cast
 
 from fastapi import HTTPException
 
@@ -21,6 +21,9 @@ from qqmusic_api.modules.song import SongApi, SongFileInfo, SongFileType, SongQu
 from ..routing.adapter_registry import adapter
 from ..routing.route_types import AuthPolicy, HttpMethod, RouteContext
 from ._helpers import Q, R
+
+if TYPE_CHECKING:
+    from qqmusic_api.core.transport import NiquestsTransport
 
 REPORT_URL = "https://stat6.y.qq.com/android/fcgi-bin/imusic_tj"
 
@@ -114,7 +117,8 @@ async def play_duration_adapter(context: RouteContext) -> bool:
     if credential.musickey:
         cookies["qm_keyst"] = credential.musickey
         cookies["qqmusic_key"] = credential.musickey
-    response = await client.transport._client.post(
+    transport = cast("NiquestsTransport", client.transport)
+    response = await transport._client.post(
         REPORT_URL,
         data=gzip.compress(xml.encode()),
         cookies=cookies,
@@ -130,7 +134,7 @@ async def play_duration_adapter(context: RouteContext) -> bool:
     # niquests may return a lazy/multiplexed response; gather it before any
     # status or body access, matching the upstream transport's own behavior.
     if getattr(response, "lazy", False):
-        await client.transport._client.gather(response)
+        await transport._client.gather(response)
     content = response.content or b""
     if response.status_code != 200 or len(content) <= 5 or content[:5] != b"\x00" * 5:
         return False

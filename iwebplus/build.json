@@ -1,6 +1,5 @@
 {
-  "version": "0.8.2-iwebplus.8",
+  "version": "0.8.2-iwebplus.9",
   "upstreamVersion": "0.8.2",
-  "minGlibc": "2.39",
-  "sourceEpoch": 1791203382
+  "minGlibc": "2.39"
 }

@@ -1,4 +1,4 @@
-QQMusicApi standalone module 0.8.2-iwebplus.7
+QQMusicApi standalone module 0.8.2-iwebplus.9
 
 QQMusicApi main snapshot (source version 0.8.2), copyright its upstream authors and contributors.
 Upstream: https://github.com/L-1124/QQMusicApi
@@ -9,14 +9,15 @@ This standalone build is not an upstream Release binary.
 The iWebPlus launcher, build scripts and module acceptance tests are
 modifications/additions made for this standalone distribution in 2026.
 They are distributed under GPL-3.0-or-later, WITHOUT ANY WARRANTY.
-The build script patches the upstream response cookie snapshot on 2026-10-18
+This fork modifies the upstream response cookie snapshot (2026-10-18)
 to avoid ambiguous CookieJar name lookups during QQ QR authorization.
-On the same date it patches only the radar Web route to require caller
+It also modifies only the radar Web route to require caller
 credentials and remove public caching/coalescing, preserving the SDK method,
 page parameter and response model. Other recommendation/public routes are
 unchanged; no new upstream protocol is introduced.
-The source archive includes the pristine pinned upstream commit and the exact
-patches in scripts/build-qq-module.py.
+The source archive includes the exact fork commit with these modifications,
+the authenticated play_duration route in web/src/routes/report.py, and the
+launcher/build scripts/tests in iwebplus/. source-identity.json records its commit.
 The wrapper adds authenticated local transport, lifecycle controls and a frozen runtime; it disables CORS,
 redirects, environment configuration and shared/default account seeds.
 The wrapper disables only the upstream per-IP rate limiter for authenticated
@@ -31,7 +32,7 @@ TypeScript source. Redis, cloud upload extras, development/documentation
 tools, GUI frameworks and a PyPy-only zstandard backend are not bundled.
 The CPython zstandard backend and the locked upstream web runtime remain.
 
-The accompanying qqmusic-source-0.8.2-iwebplus.7.tar.gz contains the complete
+The accompanying qqmusic-source-0.8.2-iwebplus.9.tar.gz contains the complete
 upstream commit, the launcher/build scripts/tests, the dependency source
 distributions, and the fixed PyInstaller source including its bootloader.
 The source archive includes the instructions needed to build this module.
